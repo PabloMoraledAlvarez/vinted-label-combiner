@@ -49,7 +49,7 @@ export default function EtiquetaCombiner() {
     });
 
     try {
-      const response = await axios.post("https://combinaretiquetasbackend.onrender.com", formData, {
+      const response = await axios.post("https://combinaretiquetasbackend.onrender.com/combinar", formData, {
         responseType: "blob",
       });
       const blob = new Blob([response.data], { type: "application/pdf" });

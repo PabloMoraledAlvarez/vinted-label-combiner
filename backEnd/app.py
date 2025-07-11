@@ -10,7 +10,7 @@ print(f"📂 Flask ejecutado desde: {os.getcwd()}")
 from scriptOptimo import combinar_etiquetas
 
 app = Flask(__name__)
-CORS(app, origins=["https://combinaretiquetas.onrender.com/"])
+CORS(app, origins=["https://combinaretiquetas.onrender.com"])
 
 @app.route("/combinar", methods=["POST"])
 def combinar():

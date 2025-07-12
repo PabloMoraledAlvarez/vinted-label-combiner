@@ -25,11 +25,14 @@ def combinar():
     textos = request.form.getlist("textos")
     tipos = request.form.getlist("tipos")
 
-    if len(files) != len(textos) or len(files) != len(tipos):
+    if len(files) < 2:
+        return "Debes enviar al menos 2 etiquetas", 400
+
+    modo_rapido = len(textos) == 0 and len(tipos) == 0
+
+    if not modo_rapido and (len(files) != len(textos) or len(files) != len(tipos)):
         return "Error: archivos, textos y tipos deben coincidir en cantidad", 400
 
-    if not (2 <= len(files) <= 4):
-        return "Debes enviar entre 2 y 4 etiquetas", 400
 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
@@ -39,8 +42,12 @@ def combinar():
             file_id = str(uuid.uuid4())[:8]
             temp_path = temp_dir_path / f"etiqueta_{file_id}.pdf"
             file.save(temp_path)
-            etiquetas_info.append((temp_path, textos[i], tipos[i]))
 
+            if modo_rapido:
+                etiquetas_info.append((temp_path, "", "inpost"))  # texto vacío, tipo por defecto
+            else:
+                etiquetas_info.append((temp_path, textos[i], tipos[i]))
+                
         output_path = temp_dir_path / "etiquetas_combinadas.pdf"
 
         try:

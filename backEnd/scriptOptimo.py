@@ -99,42 +99,47 @@ def insertar_etiqueta_con_texto(pagina, pix, destino, texto, escala_forzada=None
 
 def combinar_etiquetas(etiqueta_data, output_path, zoom=2):
     """Combina 2-4 etiquetas en un solo PDF A4 con texto identificativo y escala común."""
-    if not (2 <= len(etiqueta_data) <= 4):
-        print("⚠️ Solo se aceptan entre 2 y 4 etiquetas.")
+    if len(etiqueta_data) < 2:
+        print("⚠️ Debes proporcionar al menos 2 etiquetas.")
         return
-
-    rotar = len(etiqueta_data) >= 3
-    total = len(etiqueta_data)
-
     # 📦 Extraer pixmaps
     etiquetas = [
-        (extraer_etiqueta(path, tipo=tipo, zoom=zoom, rotar=rotar, total=total), texto)
+        (extraer_etiqueta(path, tipo=tipo, zoom=zoom, rotar=(len(etiqueta_data) >= 3), total=len(etiqueta_data)), texto)
         for path, texto, tipo in etiqueta_data
     ]
 
-    # 🧮 Calcular escala común para que todas se vean iguales
     a4_ancho, a4_alto = 595, 842
-    posiciones = calcular_posiciones(total, a4_ancho, a4_alto)
-
-    escalas = []
-    for (pix, _), rect in zip(etiquetas, posiciones):
-        zona = fitz.Rect(rect.x0 + 4, rect.y0 + 4, rect.x1 - 4, rect.y1 - 24)
-        escala_w = zona.width / pix.width
-        escala_h = zona.height / pix.height
-        escalas.append(min(escala_w, escala_h))
-
-    escala_comun = min(escalas) * 1.04
-
-    # 🎯 Generar PDF
     doc = fitz.open()
-    pagina = doc.new_page(width=a4_ancho, height=a4_alto)
 
-    for (pix, texto), rect in zip(etiquetas, posiciones):
-        insertar_etiqueta_con_texto(pagina, pix, rect, texto, escala_forzada=escala_comun)
+    i = 0
+    while i < len(etiquetas):
+        # Detectar si quedan exactamente 2 al final (cuando total % 4 == 2)
+        quedan = len(etiquetas) - i
+        if quedan == 2 and len(etiquetas) % 4 == 2:
+            grupo = etiquetas[i:i+2]
+            i += 2
+        else:
+            grupo = etiquetas[i:i+4]
+            i += 4
 
+        posiciones = calcular_posiciones(len(grupo), a4_ancho, a4_alto)
+
+        # Calcular escala común para todas
+        escalas = []
+        for (pix, _), rect in zip(grupo, posiciones):
+            zona = fitz.Rect(rect.x0 + 4, rect.y0 + 4, rect.x1 - 4, rect.y1 - 24)
+            escala_w = zona.width / pix.width
+            escala_h = zona.height / pix.height
+            escalas.append(min(escala_w, escala_h))
+
+        escala_comun = min(escalas) * 1.04
+
+        pagina = doc.new_page(width=a4_ancho, height=a4_alto)
+        for (pix, texto), rect in zip(grupo, posiciones):
+            insertar_etiqueta_con_texto(pagina, pix, rect, texto, escala_forzada=escala_comun)
     doc.save(output_path)
     doc.close()
-    print(f"✅ PDF generado con {total} etiqueta(s): {output_path}")
+    print(f"✅ PDF generado con {len(etiqueta_data)} etiqueta(s): {output_path}")
 
 # 🧪 Ejemplo de uso
 if __name__ == "__main__":

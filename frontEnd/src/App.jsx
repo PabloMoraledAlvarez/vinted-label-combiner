@@ -41,6 +41,12 @@ export default function EtiquetaCombiner() {
     }
   };
 
+  const handleEliminarEtiqueta = (index) => {
+    const nuevas = [...etiquetas];
+    nuevas.splice(index, 1); // elimina la etiqueta en la posición 'index'
+    setEtiquetas(nuevas);
+  };
+
   return (
     <div className="bg-gray-100 min-h-screen p-6">
       {/* POPUP de carga */}

@@ -1,12 +1,13 @@
 // 📁 App.jsx (estilos visuales aplicados con Tailwind activado)
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import axios from "axios";
 import { saveAs } from "file-saver";
 
 export default function EtiquetaCombiner() {
   const [combinando, setCombinando] = useState(false);
   const [etiquetas, setEtiquetas] = useState([]);
+  const fileInputRef = useRef(null); // Para limpiar input después de cada carga
 
   const handleCombinar = async () => {
     if (etiquetas.length < 2) {
@@ -41,15 +42,38 @@ export default function EtiquetaCombiner() {
     }
   };
 
+  const handleArchivoChange = (e) => {
+    const nuevosArchivos = Array.from(e.target.files);
+
+    const yaSubidos = new Set(
+      etiquetas.map((et) => `${et.archivo.name}-${et.archivo.lastModified}`)
+    );
+
+    const nuevos = nuevosArchivos
+      .filter((archivo) => !yaSubidos.has(`${archivo.name}-${archivo.lastModified}`))
+      .map((archivo) => ({
+        archivo,
+        tipo: "inpost",
+        texto: "",
+      }));
+
+    setEtiquetas((prev) => [...prev, ...nuevos]);
+
+    // Limpia el input para poder volver a seleccionar los mismos archivos
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleEliminarEtiqueta = (index) => {
     const nuevas = [...etiquetas];
-    nuevas.splice(index, 1); // elimina la etiqueta en la posición 'index'
+    nuevas.splice(index, 1);
     setEtiquetas(nuevas);
   };
 
   return (
     <div className="bg-gray-100 min-h-screen p-6">
-      {/* POPUP de carga */}
+      {/* Popup de carga */}
       {combinando && (
         <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg text-center text-xl shadow-xl">
@@ -59,9 +83,13 @@ export default function EtiquetaCombiner() {
       )}
 
       <div className="bg-white mx-auto rounded-xl shadow-lg p-8 max-w-screen-lg">
-        <h1 className="font-bold text-gray-800 mb-8 text-center flex items-center justify-center gap-2 text-2xl">
+        <h1 className="font-bold text-gray-800 text-center flex items-center justify-center gap-2 text-2xl mb-4">
           <span role="text" aria-label="package">📦</span> Combinar Etiquetas PDF
         </h1>
+
+        <p className="text-center text-gray-600 max-w-2xl mx-auto text-base mb-8">
+          Sube <strong>al menos dos archivos PDF</strong> de etiquetas, añade un <strong>texto identificativo</strong> si lo deseas, selecciona el tipo de envío (InPost o UPS), y pulsa en <em>"Combinar etiquetas"</em> para descargar un único PDF listo para imprimir. Puedes añadir más etiquetas en tandas.
+        </p>
 
         {/* Subida múltiple */}
         <div className="mb-6">
@@ -72,19 +100,13 @@ export default function EtiquetaCombiner() {
             type="file"
             accept="application/pdf"
             multiple
-            onChange={(e) => {
-              const nuevos = Array.from(e.target.files).map((archivo) => ({
-                archivo,
-                tipo: "inpost",
-                texto: "",
-              }));
-              setEtiquetas(nuevos);
-            }}
+            onChange={handleArchivoChange}
+            ref={fileInputRef}
             className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base bg-white"
           />
         </div>
 
-        {/* Lista de archivos + select + texto */}
+        {/* Lista de archivos */}
         {etiquetas.length > 0 && (
           <div className="space-y-4 mt-6">
             {etiquetas.map((etiqueta, i) => (
@@ -121,7 +143,6 @@ export default function EtiquetaCombiner() {
                   className="border border-gray-300 rounded px-3 py-2 w-full md:w-1/3"
                 />
 
-                {/* ✅ Botón de eliminar */}
                 <button
                   onClick={() => handleEliminarEtiqueta(i)}
                   className="text-red-500 hover:text-red-700 font-semibold border border-red-300 px-3 py-1 rounded ml-2"
@@ -134,7 +155,7 @@ export default function EtiquetaCombiner() {
           </div>
         )}
 
-        {/* Botón combinar */}
+        {/* Botón de combinar */}
         {etiquetas.length > 0 && (
           <div className="mt-10 text-center">
             <button

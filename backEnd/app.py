@@ -10,7 +10,14 @@ print(f"📂 Flask ejecutado desde: {os.getcwd()}")
 from scriptOptimo import combinar_etiquetas
 
 app = Flask(__name__)
-CORS(app, origins=["https://combinaretiquetas.onrender.com"])
+# 🔁 Permitir CORS dinámicamente según entorno
+frontend_local = "http://localhost:5173"
+frontend_render = "https://combinaretiquetas.onrender.com"  # cámbialo si usas otro dominio
+
+if os.environ.get("RENDER") == "true":
+    CORS(app, origins=[frontend_render])
+else:
+    CORS(app, origins=[frontend_local])
 
 @app.route("/combinar", methods=["POST"])
 def combinar():

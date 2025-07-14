@@ -3,11 +3,33 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
 import { saveAs } from "file-saver";
+import pdfjsLib from "./pdfWorker";
 
 export default function EtiquetaCombiner() {
   const [combinando, setCombinando] = useState(false);
   const [etiquetas, setEtiquetas] = useState([]);
   const fileInputRef = useRef(null); // Para limpiar input después de cada carga
+  const [imagenAmpliada, setImagenAmpliada] = useState(null);
+
+  const generarPreviewPDF = async (archivo) => {
+    const fileReader = new FileReader();
+    return new Promise((resolve) => {
+      fileReader.onload = async function () {
+        const typedarray = new Uint8Array(this.result);
+        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({ canvasContext: context, viewport }).promise;
+        resolve(canvas.toDataURL());
+      };
+      fileReader.readAsArrayBuffer(archivo);
+    });
+  };
 
   const handleCombinar = async () => {
     if (etiquetas.length < 2) {
@@ -42,28 +64,31 @@ export default function EtiquetaCombiner() {
     }
   };
 
-  const handleArchivoChange = (e) => {
-    const nuevosArchivos = Array.from(e.target.files);
+  const handleArchivoChange = async (event) => {
+    const archivos = Array.from(event.target.files);
 
-    const yaSubidos = new Set(
-      etiquetas.map((et) => `${et.archivo.name}-${et.archivo.lastModified}`)
-    );
-
-    const nuevos = nuevosArchivos
-      .filter((archivo) => !yaSubidos.has(`${archivo.name}-${archivo.lastModified}`))
-      .map((archivo) => ({
+    const nuevasEtiquetas = await Promise.all(
+      archivos.map(async (archivo) => ({
         archivo,
         tipo: "inpost",
         texto: "",
-      }));
+        preview: await generarPreviewPDF(archivo),
+      }))
+    );
 
-    setEtiquetas((prev) => [...prev, ...nuevos]);
+    setEtiquetas((prev) => [...prev, ...nuevasEtiquetas]);
 
-    // Limpia el input para poder volver a seleccionar los mismos archivos
+    // Limpia el input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
+
+
+  // Limpia el input para poder volver a seleccionar los mismos archivos
+  if (fileInputRef.current) {
+    fileInputRef.current.value = "";
+  }
 
   const handleEliminarEtiqueta = (index) => {
     const nuevas = [...etiquetas];
@@ -73,6 +98,31 @@ export default function EtiquetaCombiner() {
 
   return (
     <div className="bg-gray-100 min-h-screen p-6">
+      {
+        imagenAmpliada && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+            onClick={() => setImagenAmpliada(null)}
+          >
+            <div
+              className="bg-white p-4 rounded-lg shadow-lg max-w-[90%] max-h-[90%] overflow-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="text-red-600 float-right font-bold text-xl mb-2"
+                onClick={() => setImagenAmpliada(null)}
+              >
+                ❌
+              </button>
+              <img
+                src={imagenAmpliada}
+                alt="Etiqueta ampliada"
+                className="max-w-full max-h-[80vh] mx-auto block"
+              />
+            </div>
+          </div>
+        )
+      }
       {/* Popup de carga */}
       {combinando && (
         <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -117,6 +167,15 @@ export default function EtiquetaCombiner() {
                 <span className="flex-1 text-gray-800 truncate font-medium">
                   📄 {etiqueta.archivo.name}
                 </span>
+
+                {etiqueta.preview && (
+                  <img
+                    src={etiqueta.preview}
+                    alt="Vista previa del PDF"
+                    className="w-32 h-auto mt-2 border rounded shadow cursor-pointer hover:scale-105 transition"
+                    onClick={() => setImagenAmpliada(etiqueta.preview)}
+                  />
+                )}
 
                 <select
                   value={etiqueta.tipo}
@@ -169,4 +228,7 @@ export default function EtiquetaCombiner() {
       </div>
     </div>
   );
-}
+};
+
+
+
